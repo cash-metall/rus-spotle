@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ноталь — угадай русского музыканта</title>
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0f0f14;
+    --panel:#1a1a22;
+    --panel2:#22222c;
+    --border:#2e2e3a;
+    --text:#f4f4f7;
+    --muted:#9aa0ad;
+    --brand:#8b5cf6;
+    --brand-dark:#6d28d9;
+    --action:#b6f24a;
+    --action-text:#122006;
+    --match:#2ecc71;
+    --close:#f1c40f;
+    --nomatch:#4b4b57;
+    --radius:14px;
+    --maxw:600px;
+  }
+  body.cb{
+    --match:#3b82f6;   /* синий */
+    --close:#f59e0b;   /* оранжевый */
+    --nomatch:#4b4b57;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;color:inherit}
+  a{color:var(--brand);}
+
+  /* ---------- Header ---------- */
+  header{
+    width:100%;max-width:var(--maxw);
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;border-bottom:1px solid var(--border);
+    position:sticky;top:0;background:var(--bg);z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:22px;letter-spacing:.5px}
+  .brand .note{color:var(--brand)}
+  .brand-ic{width:28px;height:28px;border-radius:8px;display:block}
+  .brand small{font-weight:600;font-size:11px;color:var(--muted);letter-spacing:0}
+  .hdr-icons{display:flex;gap:4px}
+  .icon-btn{
+    width:38px;height:38px;border-radius:10px;background:transparent;
+    display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--muted);
+    transition:background .15s,color .15s;
+  }
+  .icon-btn:hover{background:var(--panel2);color:var(--text)}
+
+  main{width:100%;max-width:var(--maxw);padding:14px;flex:1;position:relative}
+
+  /* ---------- Search ---------- */
+  .search-wrap{position:relative;margin-bottom:12px}
+  #search{
+    width:100%;padding:15px 16px;font-size:16px;border-radius:12px;
+    background:var(--panel);border:2px solid var(--border);color:var(--text);outline:none;
+    transition:border-color .15s;
+  }
+  #search:focus{border-color:var(--brand)}
+  #search:disabled{opacity:.5}
+  .dropdown{
+    position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--panel);
+    border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:20;
+    box-shadow:0 12px 30px rgba(0,0,0,.5);max-height:320px;overflow-y:auto;
+  }
+  .dropdown.hidden{display:none}
+  .opt{padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+  .opt:last-child{border-bottom:none}
+  .opt.active,.opt:hover{background:var(--panel2)}
+  .opt .av{flex:0 0 auto}
+  .opt .nm{font-size:15px}
+  .opt .gn{margin-left:auto;font-size:12px;color:var(--muted)}
+
+  /* avatars */
+  .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-weight:700;font-size:15px;color:#fff;flex:0 0 auto;overflow:hidden}
+  .av img{width:100%;height:100%;object-fit:cover}
+
+  /* ---------- Legend + counter ---------- */
+  .barrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);align-items:center;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .dot.m{background:var(--match)} .dot.c{background:var(--close)} .dot.n{background:var(--nomatch)}
+  .counter{font-size:12px;color:var(--muted)}
+  .counter b{color:var(--text)}
+
+  /* ---------- Guess cards ---------- */
+  #guesses{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:12px 12px 11px}
+  .card.new{animation:cardin .25s ease both}
+  @keyframes cardin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .card-head{display:flex;align-items:center;gap:10px;margin-bottom:11px;padding:0 2px}
+  .card-head .nm{font-weight:800;font-size:17px}
+  .card-head .num{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .card.win .card-head .nm{color:var(--match)}
+
+  /* 6 атрибутов в два ряда 3×2, увеличенные плитки */
+  .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;perspective:900px}
+  .tile{
+    border-radius:12px;background:var(--nomatch);padding:9px 6px;min-height:86px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    transform-origin:center;
+  }
+  /* раскрытие как в оригинале: последовательный флип только у новой карточки */
+  .card.new .tile{animation:flip .5s cubic-bezier(.2,.7,.25,1) both}
+  @keyframes flip{
+    0%{transform:rotateX(-90deg);opacity:0}
+    50%{opacity:1}
+    100%{transform:rotateX(0);opacity:1}
+  }
+  .tile.match{background:var(--match);color:#08130a}
+  .tile.close{background:var(--close);color:#1e1600}
+  .tile.nomatch{background:var(--nomatch);color:#e6e6ee}
+  .tile .lbl{font-size:clamp(9px,2.7vw,11px);text-transform:uppercase;letter-spacing:.4px;opacity:.8;margin-bottom:5px;font-weight:700}
+  .tile .val{font-size:clamp(13px,3.9vw,17px);font-weight:800;line-height:1.15;display:flex;align-items:center;gap:3px;justify-content:center;flex-wrap:wrap;overflow-wrap:anywhere}
+  .tile .arrow{font-size:1.15em;line-height:1}
+
+  @media(max-width:520px){
+    main{padding:12px}
+    .brand{font-size:20px}
+    .card{padding:11px 10px 10px}
+    .tiles{gap:7px}
+    .tile{min-height:80px;border-radius:11px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .card.new,.card.new .tile{animation:none}
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{padding:14px 20px;border-radius:12px;font-weight:800;font-size:16px;background:var(--panel2);color:var(--text);width:100%}
+  .btn.action{background:var(--action);color:var(--action-text)}
+  .btn.brand{background:var(--brand);color:#fff}
+  .btn:hover{filter:brightness(1.08)}
+  .btn.small{width:auto;padding:10px 16px;font-size:14px}
+
+  /* ---------- Modal / overlay ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(5,5,10,.72);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;overflow-y:auto}
+  .overlay.hidden{display:none}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:18px;max-width:460px;width:100%;
+    padding:22px;position:relative;max-height:92vh;overflow-y:auto;margin:auto}
+  .modal h2{margin:0 0 4px;font-size:22px}
+  .modal .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .close-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:9px;background:var(--panel2);
+    font-size:18px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+  .close-x:hover{color:var(--text)}
+
+  /* Intro */
+  #intro .modal{text-align:center}
+  .logo-big{font-size:46px;font-weight:900;letter-spacing:1px;margin:10px 0 2px}
+  .logo-big .note{color:var(--brand)}
+  .logo-ic{width:52px;height:52px;border-radius:13px;vertical-align:-11px}
+  .tag{color:var(--muted);font-size:14px;margin-bottom:22px}
+  .gamehint{font-size:12px;color:var(--muted);margin-top:14px}
+
+  /* Help */
+  .tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel2);padding:5px;border-radius:12px}
+  .tab{flex:1;padding:9px;border-radius:9px;font-weight:700;font-size:14px;background:transparent;color:var(--muted)}
+  .tab.active{background:var(--brand);color:#fff}
+  .steps{display:flex;flex-direction:column;gap:14px}
+  .step{display:flex;gap:12px;align-items:flex-start}
+  .step .n{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+  .step p{margin:0;font-size:14px;line-height:1.5;color:#dcdce4}
+  .attr-list{display:flex;flex-direction:column;gap:14px}
+  .attr{border-left:3px solid var(--brand);padding-left:12px}
+  .attr b{font-size:14px}
+  .attr p{margin:4px 0 0;font-size:13px;color:#c9c9d2;line-height:1.5}
+  .mini-legend{display:flex;gap:14px;margin:18px 0 4px;flex-wrap:wrap;font-size:13px}
+  .mini-legend span{display:flex;align-items:center;gap:6px}
+  .pill-list{font-size:12.5px;color:#c9c9d2;line-height:1.7}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--border);border-radius:20px;
+    padding:2px 10px;margin:2px 2px;font-size:12px}
+
+  /* Stats */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;margin-bottom:20px}
+  .stat-grid .v{font-size:26px;font-weight:800}
+  .stat-grid .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+  .dist{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+  .dist-row{display:flex;align-items:center;gap:8px;font-size:13px}
+  .dist-row .lab{width:16px;text-align:right;color:var(--muted)}
+  .dist-row .bar{background:var(--brand-dark);border-radius:5px;min-width:22px;padding:2px 8px;text-align:right;
+    font-weight:700;font-size:12px;color:#fff}
+  .dist-row .bar.hl{background:var(--match);color:#08130a}
+
+  /* Endgame */
+  .answer-card{display:flex;align-items:center;gap:14px;background:var(--panel2);border-radius:14px;padding:14px;margin-bottom:14px}
+  .answer-card .av{width:56px;height:56px;font-size:22px}
+  .answer-card .nm{font-weight:800;font-size:19px}
+  .answer-card .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .track{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:14px;padding:12px;margin-bottom:16px;text-decoration:none;color:inherit}
+  .track:hover{background:var(--border)}
+  .track .cov{width:48px;height:48px;border-radius:8px;background:var(--brand-dark);display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;overflow:hidden}
+  .track .cov img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+  .track .t{font-weight:700;font-size:15px}
+  .track .a{font-size:12px;color:var(--muted)}
+  .track .go{margin-left:auto;font-size:12px;color:var(--brand);white-space:nowrap}
+  .result-line{text-align:center;font-size:15px;margin-bottom:14px;line-height:1.5}
+  .row-btns{display:flex;gap:10px}
+
+  /* Menu list */
+  .menu-list{display:flex;flex-direction:column;gap:2px}
+  .menu-item{display:flex;align-items:center;gap:12px;padding:14px 10px;border-radius:10px;font-size:15px;background:transparent;width:100%;text-align:left;color:var(--text)}
+  .menu-item:hover{background:var(--panel2)}
+  .menu-item .ic{width:22px;text-align:center;font-size:18px}
+  .menu-item .sw{margin-left:auto;font-size:12px;color:var(--muted);border:1px solid var(--border);padding:3px 10px;border-radius:20px}
+  .menu-item .sw.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .menu-sep{height:1px;background:var(--border);margin:8px 0}
+
+  /* toast */
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--text);color:#111;padding:12px 20px;border-radius:10px;font-weight:700;font-size:14px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:80}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .empty-note{text-align:center;color:var(--muted);padding:40px 10px;font-size:14px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><img class="brand-ic" src="icon.svg" alt=""> Ноталь</div>
+  <div class="hdr-icons">
+    <button class="icon-btn" id="btn-stats" title="Статистика">📊</button>
+    <button class="icon-btn" id="btn-help" title="Как играть">❓</button>
+    <button class="icon-btn" id="btn-menu" title="Меню">☰</button>
+  </div>
+</header>
+
+<main>
+  <div class="search-wrap">
+    <input id="search" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
+           placeholder="Введите имя артиста…">
+    <div id="dropdown" class="dropdown hidden"></div>
+  </div>
+
+  <div class="barrow">
+    <div class="legend">
+      <span><i class="dot n"></i>Нет совпадения</span>
+      <span><i class="dot c"></i>Близко</span>
+      <span><i class="dot m"></i>Точно</span>
+    </div>
+    <div class="counter" id="counter"></div>
+  </div>
+
+  <div id="guesses"></div>
+</main>
+
+<!-- INTRO -->
+<div class="overlay" id="intro">
+  <div class="modal">
+    <div class="logo-big"><img class="logo-ic" src="icon.svg" alt=""> Ноталь</div>
+    <div class="tag">Музыкальный Wordle про русских артистов</div>
+    <button class="btn action" id="intro-play">Играть</button>
+    <div style="height:10px"></div>
+    <button class="btn" id="intro-how">Как играть?</button>
+    <div class="gamehint" id="intro-hint"></div>
+  </div>
+</div>
+
+<!-- HELP -->
+<div class="overlay hidden" id="help">
+  <div class="modal">
+    <button class="close-x" data-close="help">✕</button>
+    <h2>Как играть</h2>
+    <div class="sub">Угадайте загаданного артиста за 8 попыток</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="how">Как играть</button>
+      <button class="tab" data-tab="attrs">Атрибуты</button>
+    </div>
+
+    <div id="tab-how">
+      <div class="steps">
+        <div class="step"><div class="n">1</div><p>Введите в поиске имя любого артиста из базы и выберите его из списка.</p></div>
+        <div class="step"><div class="n">2</div><p>Откроются 6 плиток с атрибутами вашего артиста, окрашенных по «похожести» на артиста дня.</p></div>
+        <div class="step"><div class="n">3</div><p>Используйте подсказки, чтобы за 8 попыток вычислить и угадать точное имя.</p></div>
+      </div>
+      <div class="mini-legend">
+        <span><i class="dot m"></i> Точное совпадение</span>
+        <span><i class="dot c"></i> Близко</span>
+        <span><i class="dot n"></i> Не совпадает</span>
+      </div>
+      <p style="font-size:13px;color:#c9c9d2;line-height:1.6">Стрелки-подсказки указывают на артиста дня:
+      «Дебют» — <b>▲</b> позже (год больше), <b>▼</b> раньше; «Популярность» — <b>▲</b> популярнее, <b>▼</b> менее популярен.</p>
+    </div>
+
+    <div id="tab-attrs" style="display:none">
+      <div class="attr-list">
+        <div class="attr"><b>🗓 Дебют</b><p>Год первого релиза (альбом / мини-альбом / микстейп). Зелёный — точно, жёлтый — в пределах 5 лет, со стрелкой направления.</p></div>
+        <div class="attr"><b>👥 Состав</b><p>Число участников в самом известном составе. «Соло» — для сольных артистов. Только точно / не совпало.</p></div>
+        <div class="attr"><b>🔥 Популярность</b><p>Место в рейтинге популярности базы (№1 — самый популярный). Жёлтый — рядом по рейтингу. Стрелка: <b>▲</b> — артист дня популярнее вас, <b>▼</b> — менее популярен.</p></div>
+        <div class="attr"><b>🚻 Пол</b><p>Мужской / Женский / Смешанный / Небинарный. Только точно / не совпало.</p></div>
+        <div class="attr"><b>🎸 Жанр</b><p>Один основной жанр. Только точно / не совпало.</p></div>
+        <div class="attr"><b>📍 Город</b><p>Город происхождения. Зелёный — тот же город, жёлтый — тот же регион/страна.</p></div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Жанры в базе:</div>
+        <div class="pill-list" id="genre-pills"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="overlay hidden" id="stats">
+  <div class="modal">
+    <button class="close-x" data-close="stats">✕</button>
+    <h2>Статистика</h2>
+    <div class="sub">Данные хранятся в этом браузере</div>
+    <div class="stat-grid" id="stat-grid"></div>
+    <h2 style="font-size:16px">Распределение попыток</h2>
+    <div class="dist" id="dist"></div>
+  </div>
+</div>
+
+<!-- ENDGAME -->
+<div class="overlay hidden" id="endgame">
+  <div class="modal">
+    <button class="close-x" data-close="endgame">✕</button>
+    <h2 id="end-title">Артист дня</h2>
+    <div class="sub" id="end-sub"></div>
+    <div class="answer-card" id="answer-card"></div>
+    <a class="track" id="track-link" href="#" target="_blank" rel="noopener"></a>
+    <div class="result-line" id="result-line"></div>
+    <button class="btn action" id="btn-again">Играть снова</button>
+    <div class="row-btns" style="margin-top:10px">
+      <button class="btn" id="btn-share">Поделиться</button>
+      <button class="btn" id="btn-endstats">Статистика</button>
+    </div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div class="overlay hidden" id="menu">
+  <div class="modal">
+    <button class="close-x" data-close="menu">✕</button>
+    <h2>Меню</h2>
+    <div class="sub" id="menu-sub"></div>
+    <div class="menu-list">
+      <button class="menu-item" id="m-how"><span class="ic">❓</span> Как играть</button>
+      <button class="menu-item" id="m-stats"><span class="ic">📊</span> Статистика</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" id="m-new"><span class="ic">🔀</span> Новая игра</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" id="m-load"><span class="ic">📥</span> Загрузить свой CSV</button>
+      <button class="menu-item" id="m-reset-data"><span class="ic">🔄</span> Перезагрузить базу с сервера</button>
+      <button class="menu-item" id="m-cb"><span class="ic">🎨</span> Режим для дальтоников <span class="sw" id="cb-sw">Выкл</span></button>
+      <button class="menu-item" id="m-reset-stats"><span class="ic">🗑</span> Сбросить статистику</button>
+    </div>
+    <input type="file" id="file-input" accept=".csv,text/csv" style="display:none">
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- База артистов не встроена: загружается по сети из artists.csv (см. DB_URL и fetchDB в скрипте ниже). -->
+
+<script>
+/* =========================================================
+   Ноталь — русский аналог Spotle. Один файл, без зависимостей.
+   ========================================================= */
+'use strict';
+
+/* ---------- Конфиг ---------- */
+const MAX_GUESSES   = 8;
+const DEBUT_CLOSE   = 5;        // ±5 лет = «близко»
+const GENRES =['Поп','Рок','Рэп/Хип-хоп','Шансон','Электроника','Панк','Инди','Метал','Фолк','Авторская песня','Эстрада','R&B','Джаз'];
+const DB_URL = 'artists.csv'; // база тянется с сервера (тот же origin, напр. http://localhost:8081/)
+const LS = {
+  csv:      'notal_v1_csv',
+  settings: 'notal_v1_settings',
+  stats:    'notal_v1_stats',
+  seenIntro:'notal_v1_seen',
+};
+
+/* ---------- Утилиты ---------- */
+const $  = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+function el(tag,props={},...kids){
+  const e=document.createElement(tag);
+  for(const k in props){
+    if(k==='class') e.className=props[k];
+    else if(k==='text') e.textContent=props[k];
+    else if(k==='html') e.innerHTML=props[k];
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2),props[k]);
+    else e.setAttribute(k,props[k]);
+  }
+  for(const c of kids){ if(c==null) continue; e.append(c.nodeType?c:document.createTextNode(c)); }
+  return e;
+}
+function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function norm(s){return (s||'').trim().toLowerCase().replace(/ё/g,'е');}
+function lsGet(k,def){try{const v=localStorage.getItem(k);return v==null?def:JSON.parse(v);}catch(e){return def;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function avatarColor(name){const h=hashStr(name)%360;return `hsl(${h} 55% 42%)`;}
+
+/* ---------- CSV ---------- */
+function parseCSV(text){
+  const rows=[]; let i=0,field='',row=[],inQ=false;
+  text=text.replace(/\r\n?/g,'\n');
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue;} inQ=false;i++;continue; }
+      field+=c;i++;continue;
+    }
+    if(c==='"'){inQ=true;i++;continue;}
+    if(c===','){row.push(field);field='';i++;continue;}
+    if(c==='\n'){row.push(field);rows.push(row);row=[];field='';i++;continue;}
+    field+=c;i++;
+  }
+  if(field.length||row.length){row.push(field);rows.push(row);}
+  return rows;
+}
+function buildDataset(csvText){
+  const rows=parseCSV(csvText).filter(r=>r.some(c=>c.trim()!==''));
+  if(!rows.length) return [];
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  const idx=n=>head.indexOf(n);
+  const list=[];
+  for(let r=1;r<rows.length;r++){
+    const c=rows[r];
+    const get=n=>{const j=idx(n);return j>=0&&c[j]!=null?c[j].trim():'';};
+    const name=get('name');
+    if(!name) continue;
+    const membersRaw=get('members');
+    let members=parseInt(membersRaw,10);
+    if(isNaN(members)) members = /соло|solo/i.test(membersRaw)?1:1;
+    list.push({
+      name,
+      debut:parseInt(get('debut_year'),10)||null,
+      members,
+      gender:get('gender'),
+      genre:get('genre'),
+      city:get('city'),
+      region:get('region'),
+      pop:parseFloat(get('popularity'))||0,
+      image:get('image'),
+      track:get('track_title'),
+      trackLink:get('track_link'),
+      trackCover:get('track_cover'),
+    });
+  }
+  // Рейтинг: больше pop => выше место (№1). Стабильно по имени при равенстве.
+  const ranked=[...list].sort((a,b)=> b.pop-a.pop || a.name.localeCompare(b.name,'ru'));
+  ranked.forEach((a,i)=>a.rank=i+1);
+  return list;
+}
+
+/* ---------- Состояние ---------- */
+let DATA=[];
+let POP_CLOSE=3;
+let settings=lsGet(LS.settings,{cb:false});
+let game=null; // {target,guesses:[artist...],done,won}
+
+async function fetchDB(){
+  const urls=[DB_URL,'http://localhost:8081/artists.csv'];
+  for(const url of urls){
+    try{
+      const res=await fetch(url,{cache:'no-store'});
+      if(res.ok){ const t=await res.text(); if(t && t.trim()) return t; }
+    }catch(e){/* пробуем следующий адрес */}
+  }
+  return null;
+}
+async function loadData(){
+  const stored=lsGet(LS.csv,null);        // свой загруженный CSV имеет приоритет
+  const text = stored || await fetchDB();
+  DATA = text ? buildDataset(text) : [];
+  POP_CLOSE = Math.max(3,Math.round(DATA.length/10));
+  return DATA.length;
+}
+
+/* ---------- Выбор артиста ---------- */
+function pickRandom(exclude){
+  if(!DATA.length) return null;
+  if(DATA.length===1) return DATA[0];
+  let a,tries=0;
+  do{ a=DATA[Math.floor(Math.random()*DATA.length)]; tries++; }
+  while(exclude && a.name===exclude && tries<12);
+  return a;
+}
+
+/* ---------- Инициализация партии ---------- */
+function initGame(){
+  if(!DATA.length){ game=null; renderEmpty(); return; }
+  const prev = game && game.target ? game.target.name : null;
+  game={target:pickRandom(prev),guesses:[],done:false,won:false};
+  close('endgame');
+  applySettings();
+  renderCounter();
+  renderGuesses();
+  $('#search').disabled=false;
+  $('#search').value='';
+}
+
+/* ---------- Сравнение атрибутов ---------- */
+function cmpNumber(g,t,close,invert){
+  if(g==null||t==null) return {state:'nomatch',arrow:null};
+  if(g===t) return {state:'match',arrow:null};
+  let arrow = t>g?'▲':'▼';
+  if(invert) arrow = arrow==='▲'?'▼':'▲';  // рейтинг: ▲ = популярнее (номер места меньше)
+  return {state:Math.abs(g-t)<=close?'close':'nomatch',arrow};
+}
+function membersLabel(n){return n===1?'Соло':String(n);}
+
+function compareArtist(g,t){
+  const tiles=[];
+  // Дебют
+  {const r=cmpNumber(g.debut,t.debut,DEBUT_CLOSE);
+   tiles.push({lbl:'Дебют',val:g.debut??'—',state:r.state,arrow:r.arrow});}
+  // Состав
+  {const st=g.members===t.members?'match':'nomatch';
+   tiles.push({lbl:'Состав',val:membersLabel(g.members),state:st,arrow:null});}
+  // Популярность (по месту в рейтинге)
+  {const r=cmpNumber(g.rank,t.rank,POP_CLOSE,true);
+   tiles.push({lbl:'Популярность',val:'№'+g.rank,state:r.state,arrow:r.arrow});}
+  // Пол
+  {const st=norm(g.gender)===norm(t.gender)?'match':'nomatch';
+   tiles.push({lbl:'Пол',val:g.gender||'—',state:st,arrow:null});}
+  // Жанр
+  {const st=norm(g.genre)===norm(t.genre)?'match':'nomatch';
+   tiles.push({lbl:'Жанр',val:g.genre||'—',state:st,arrow:null});}
+  // Город
+  {let st='nomatch';
+   if(g.city&&norm(g.city)===norm(t.city)) st='match';
+   else if(g.region&&norm(g.region)===norm(t.region)) st='close';
+   tiles.push({lbl:'Город',val:g.city||'—',state:st,arrow:null});}
+  return tiles;
+}
+
+/* ---------- Аватар ---------- */
+function avatarEl(artist,cls=''){
+  const a=el('div',{class:'av '+cls});
+  if(artist.image){
+    a.append(el('img',{src:artist.image,alt:'',onerror:function(){this.remove();a.textContent=artist.name[0];}}));
+  }else{
+    a.textContent=(artist.name[0]||'?').toUpperCase();
+    a.style.background=avatarColor(artist.name);
+  }
+  if(!artist.image) a.style.background=avatarColor(artist.name);
+  return a;
+}
+
+/* ---------- Рендер ---------- */
+function renderCounter(){
+  const left=MAX_GUESSES-game.guesses.length;
+  $('#counter').innerHTML='Ноталь · Попыток: <b>'+left+'</b>/'+MAX_GUESSES;
+}
+function renderLoading(){
+  $('#search').disabled=true;
+  $('#guesses').innerHTML='';
+  $('#guesses').append(el('div',{class:'empty-note',text:'Загрузка базы…'}));
+}
+function renderEmpty(){
+  $('#guesses').innerHTML='';
+  $('#guesses').append(el('div',{class:'empty-note',html:
+    'Не удалось загрузить базу с сервера (<code>artists.csv</code>).<br>'+
+    'Откройте игру через локальный сервер (напр. <code>http://localhost:8081/</code>) '+
+    'или загрузите CSV вручную: <b>Меню → Загрузить свой CSV</b>.'}));
+  $('#search').disabled=true;
+}
+function renderGuesses(){
+  const box=$('#guesses'); box.innerHTML='';
+  // новые сверху
+  [...game.guesses].reverse().forEach((g,ri)=>{
+    const isLast = ri===0;
+    const win = g.name===game.target.name;
+    const idxNum = game.guesses.length-ri;
+    const card=el('div',{class:'card'+(isLast?' new':'')+(win?' win':'')});
+    const head=el('div',{class:'card-head'});
+    head.append(avatarEl(g));
+    head.append(el('div',{class:'nm',text:g.name}));
+    head.append(el('div',{class:'num',text:'#'+idxNum}));
+    card.append(head);
+    const tiles=el('div',{class:'tiles'});
+    compareArtist(g,game.target).forEach((t,ti)=>{
+      const tile=el('div',{class:'tile '+t.state});
+      tile.style.animationDelay=(isLast?ti*0.11:0)+'s';
+      tile.append(el('div',{class:'lbl',text:t.lbl}));
+      const val=el('div',{class:'val'});
+      val.append(document.createTextNode(String(t.val)));
+      if(t.arrow) val.append(el('span',{class:'arrow',text:t.arrow}));
+      tile.append(val);
+      tiles.append(tile);
+    });
+    card.append(tiles);
+    box.append(card);
+  });
+}
+
+/* ---------- Ввод / автодополнение ---------- */
+let acItems=[],acActive=-1;
+function closeDropdown(){$('#dropdown').classList.add('hidden');acItems=[];acActive=-1;}
+function searchArtists(q){
+  const nq=norm(q);
+  if(nq.length<1) return [];
+  const guessed=new Set(game?game.guesses.map(g=>g.name):[]);
+  const starts=[],incl=[];
+  for(const a of DATA){
+    if(guessed.has(a.name)) continue;
+    const nn=norm(a.name);
+    if(nn.startsWith(nq)) starts.push(a);
+    else if(nn.includes(nq)) incl.push(a);
+  }
+  return [...starts,...incl].slice(0,8);
+}
+function renderDropdown(q){
+  const dd=$('#dropdown');
+  acItems=searchArtists(q);
+  if(!acItems.length){closeDropdown();return;}
+  acActive=0;
+  dd.innerHTML='';
+  acItems.forEach((a,i)=>{
+    const o=el('div',{class:'opt'+(i===0?' active':''),onclick:()=>submitGuess(a)});
+    o.append(avatarEl(a));
+    o.append(el('div',{class:'nm',text:a.name}));
+    o.append(el('div',{class:'gn',text:a.genre||''}));
+    dd.append(o);
+  });
+  dd.classList.remove('hidden');
+}
+function moveActive(d){
+  if(!acItems.length) return;
+  acActive=(acActive+d+acItems.length)%acItems.length;
+  $$('.opt',$('#dropdown')).forEach((o,i)=>o.classList.toggle('active',i===acActive));
+  const act=$$('.opt',$('#dropdown'))[acActive];
+  if(act) act.scrollIntoView({block:'nearest'});
+}
+
+/* ---------- Попытка ---------- */
+function submitGuess(artist){
+  if(!game||game.done) return;
+  if(game.guesses.some(g=>g.name===artist.name)){toast('Уже угадано');return;}
+  game.guesses.push(artist);
+  $('#search').value='';
+  closeDropdown();
+  renderCounter();
+  renderGuesses();
+  if(artist.name===game.target.name){ game.won=true; game.done=true; }
+  else if(game.guesses.length>=MAX_GUESSES){ game.done=true; }
+  if(game.done){
+    recordStats(game.won,game.won?game.guesses.length:null);
+    $('#search').disabled=true;
+    setTimeout(showEndgame,1150);  // дождаться завершения флипа плиток
+  }
+}
+
+/* ---------- Статистика ---------- */
+function blankStats(){return{played:0,wins:0,streak:0,maxStreak:0,dist:Array(MAX_GUESSES).fill(0)};}
+function recordStats(won,tries){
+  const s=lsGet(LS.stats,blankStats());
+  s.played++;
+  if(won){ s.wins++; s.streak++; s.maxStreak=Math.max(s.maxStreak,s.streak); if(tries) s.dist[tries-1]++; }
+  else{ s.streak=0; }
+  lsSet(LS.stats,s);
+}
+function renderStats(){
+  const s=lsGet(LS.stats,blankStats());
+  const winPct=s.played?Math.round(s.wins/s.played*100):0;
+  const grid=$('#stat-grid');grid.innerHTML='';
+  [['Сыграно',s.played],['Побед %',winPct],['Серия',s.streak],['Рекорд',s.maxStreak]].forEach(([k,v])=>{
+    grid.append(el('div',{},el('div',{class:'v',text:String(v)}),el('div',{class:'k',text:k})));
+  });
+  const max=Math.max(1,...s.dist);
+  const cur=game&&game.done&&game.won?game.guesses.length:-1;
+  const dist=$('#dist');dist.innerHTML='';
+  s.dist.forEach((n,i)=>{
+    const row=el('div',{class:'dist-row'});
+    row.append(el('div',{class:'lab',text:String(i+1)}));
+    const bar=el('div',{class:'bar'+(i+1===cur?' hl':''),text:String(n)});
+    bar.style.width=Math.max(8,(n/max*100))+'%';
+    row.append(bar);
+    dist.append(row);
+  });
+}
+
+/* ---------- Экран финала ---------- */
+function showEndgame(){
+  const t=game.target;
+  $('#end-title').textContent = game.won?'Победа!':'Игра окончена';
+  $('#end-sub').textContent = game.won?'Вы угадали артиста':'Правильный ответ:';
+  const ac=$('#answer-card');ac.innerHTML='';
+  ac.append(avatarEl(t));
+  const info=el('div',{});
+  info.append(el('div',{class:'nm',text:t.name}));
+  const metaBits=[t.genre,membersLabel(t.members),t.city, t.debut?('дебют '+t.debut):null].filter(Boolean);
+  info.append(el('div',{class:'meta',text:metaBits.join(' · ')}));
+  ac.append(info);
+
+  const tl=$('#track-link');
+  if(t.track){
+    tl.style.display='';
+    tl.href=t.trackLink||'#';
+    tl.innerHTML='';
+    const cov=el('div',{class:'cov'});
+    if(t.trackCover){cov.append(el('img',{src:t.trackCover,alt:'',onerror:function(){this.remove();cov.textContent='♪';}}));}
+    else cov.textContent='♪';
+    tl.append(cov);
+    tl.append(el('div',{},el('div',{class:'t',text:t.track}),el('div',{class:'a',text:t.name})));
+    tl.append(el('div',{class:'go',text:'Слушать ↗'}));
+  }else tl.style.display='none';
+
+  const n=game.guesses.length;
+  if(game.won){
+    const praise=n<=2?'Блестяще!':n<=4?'Отлично!':n<=6?'Неплохо!':'В самый последний момент!';
+    $('#result-line').innerHTML=praise+' Угадано с <b>'+n+'</b> попытки.';
+  }else{
+    $('#result-line').innerHTML='Попытки закончились.';
+  }
+  open('endgame');
+}
+
+/* ---------- Поделиться ---------- */
+function shareText(){
+  const emo=settings.cb?{match:'🟦',close:'🟧',nomatch:'⬛'}:{match:'🟩',close:'🟨',nomatch:'⬛'};
+  const score=game.won?(game.guesses.length+'/'+MAX_GUESSES):('X/'+MAX_GUESSES);
+  let lines=['Ноталь  '+score];
+  game.guesses.forEach(g=>{
+    lines.push(compareArtist(g,game.target).map(t=>emo[t.state]).join(''));
+  });
+  return lines.join('\n');
+}
+async function doShare(){
+  const text=shareText();
+  try{
+    if(navigator.share && /Mobi|Android/i.test(navigator.userAgent)){
+      await navigator.share({text}); return;
+    }
+    await navigator.clipboard.writeText(text);
+    toast('Результат скопирован');
+  }catch(e){
+    const ta=el('textarea',{});ta.value=text;document.body.append(ta);ta.select();
+    try{document.execCommand('copy');toast('Результат скопирован');}catch(_){toast('Не удалось скопировать');}
+    ta.remove();
+  }
+}
+
+/* ---------- (обратный отсчёт удалён: игра теперь перезапускаемая) ---------- */
+
+/* ---------- Модалки ---------- */
+function open(id){$('#'+id).classList.remove('hidden');}
+function close(id){$('#'+id).classList.add('hidden');}
+
+/* ---------- Настройки ---------- */
+function applySettings(){
+  document.body.classList.toggle('cb',!!settings.cb);
+  const sw=$('#cb-sw');if(sw){sw.textContent=settings.cb?'Вкл':'Выкл';sw.classList.toggle('on',!!settings.cb);}
+}
+
+/* ---------- Toast ---------- */
+let toastTimer=null;
+function toast(msg){
+  const t=$('#toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* =========================================================
+   События
+   ========================================================= */
+function bind(){
+  const search=$('#search');
+  let debounce=null;
+  search.addEventListener('input',()=>{
+    clearTimeout(debounce);
+    const q=search.value;
+    debounce=setTimeout(()=>renderDropdown(q),120);
+  });
+  search.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){e.preventDefault();moveActive(1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();moveActive(-1);}
+    else if(e.key==='Enter'){e.preventDefault();if(acItems.length&&acActive>=0)submitGuess(acItems[acActive]);}
+    else if(e.key==='Escape'){closeDropdown();}
+  });
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.search-wrap')) closeDropdown();
+  });
+
+  // header
+  $('#btn-help').onclick=()=>open('help');
+  $('#btn-stats').onclick=()=>{renderStats();open('stats');};
+  $('#btn-menu').onclick=()=>{updateMenu();open('menu');};
+
+  // close buttons
+  $$('[data-close]').forEach(b=>b.onclick=()=>close(b.dataset.close));
+  $$('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov&&ov.id!=='intro')close(ov.id);}));
+
+  // intro
+  $('#intro-play').onclick=()=>{lsSet(LS.seenIntro,true);close('intro');search.focus();};
+  $('#intro-how').onclick=()=>open('help');
+
+  // help tabs
+  $$('.tab').forEach(t=>t.onclick=()=>{
+    $$('.tab').forEach(x=>x.classList.toggle('active',x===t));
+    $('#tab-how').style.display   = t.dataset.tab==='how'?'':'none';
+    $('#tab-attrs').style.display = t.dataset.tab==='attrs'?'':'none';
+  });
+
+  // endgame
+  $('#btn-again').onclick=()=>{initGame();search.focus();};
+  $('#btn-share').onclick=doShare;
+  $('#btn-endstats').onclick=()=>{renderStats();open('stats');};
+
+  // menu
+  $('#m-how').onclick=()=>{close('menu');open('help');};
+  $('#m-stats').onclick=()=>{close('menu');renderStats();open('stats');};
+  $('#m-new').onclick=()=>{close('menu');initGame();toast('Новая игра');search.focus();};
+  $('#m-cb').onclick=()=>{settings.cb=!settings.cb;lsSet(LS.settings,settings);applySettings();renderGuesses();};
+  $('#m-reset-stats').onclick=()=>{if(confirm('Сбросить всю статистику?')){lsSet(LS.stats,blankStats());toast('Статистика сброшена');}};
+  $('#m-load').onclick=()=>$('#file-input').click();
+  $('#m-reset-data').onclick=async()=>{
+    if(confirm('Перезагрузить базу с сервера? Ваш локально загруженный CSV будет удалён.')){
+      localStorage.removeItem(LS.csv);close('menu');renderLoading();await loadData();initGame();
+      toast(DATA.length?('База с сервера: '+DATA.length):'Сервер недоступен');
+    }
+  };
+  $('#file-input').onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onload=async()=>{
+      const test=buildDataset(rd.result);
+      if(!test.length){toast('Не найдено артистов в файле');return;}
+      lsSet(LS.csv,rd.result);await loadData();close('menu');initGame();
+      toast('Загружено артистов: '+DATA.length);
+    };
+    rd.readAsText(f,'utf-8');
+    e.target.value='';
+  };
+}
+
+function updateMenu(){
+  $('#menu-sub').textContent='В базе артистов: '+DATA.length+
+    (lsGet(LS.csv,null)?' (свой CSV)':' (с сервера)');
+  applySettings();
+}
+
+/* ---------- Заполнение справочных списков ---------- */
+function fillReference(){
+  const gp=$('#genre-pills');
+  if(gp){gp.innerHTML='';GENRES.forEach(g=>gp.append(el('span',{class:'pill',text:g})));}
+  $('#intro-hint').textContent='Новый артист в каждой игре · 8 попыток';
+}
+
+/* ---------- Старт ---------- */
+async function boot(){
+  bind();
+  fillReference();
+  applySettings();
+  if(lsGet(LS.seenIntro,false)) close('intro'); else open('intro');
+  renderLoading();
+  await loadData();
+  initGame();
+}
+boot();
+</script>
+</body>
+</html>
