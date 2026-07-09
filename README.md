@@ -12,7 +12,7 @@
 ![Vanilla JS](https://img.shields.io/badge/Vanilla_JS-f7df1e?style=flat-square&logo=javascript&logoColor=black)
 ![Без зависимостей](https://img.shields.io/badge/зависимостей-0-00b3b3?style=flat-square)
 ![Один файл](https://img.shields.io/badge/весь_код-один_index.html-1f6feb?style=flat-square)
-![Артистов](https://img.shields.io/badge/артистов-175-1f6feb?style=flat-square)
+![Артистов](https://img.shields.io/badge/артистов-183-1f6feb?style=flat-square)
 ![Жанров](https://img.shields.io/badge/жанров-13-1f6feb?style=flat-square)
 
 <br />
@@ -25,7 +25,7 @@
 
 ## 🤖 Полностью сгенерировано нейросетью
 
-Код, база из 175 артистов, оформление и даже этот README созданы с помощью ИИ — от первой строчки до последней. Игра целиком живёт в одном `index.html`: никаких зависимостей, CDN и сборки.
+Код, база из 183 артистов, оформление и даже этот README созданы с помощью ИИ — от первой строчки до последней. Игра целиком живёт в одном `index.html`: никаких зависимостей, CDN и сборки.
 
 ## 🎮 Как играть
 
@@ -42,7 +42,7 @@
 | файл | что это |
 |---|---|
 | **`index.html`** | Сама игра, всё в одном файле. Базу подгружает через `fetch('artists.csv')`. |
-| **`artists.csv`** | Рабочая база: 175 артистов, 13 жанров. |
+| **`artists.csv`** | Рабочая база: 183 артиста, 13 жанров. |
 | **`icon.svg`** | Иконка приложения (микрофон), favicon и логотип в шапке. |
 
 ## 🗃️ Как обновить базу
